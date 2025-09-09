@@ -14,9 +14,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core import Config, get_config
 from core.base_agent import AgentState
+from core.model_manager import ModelManager
 from agents import (SupervisorAgent, WebSearchAgent, CodeReviewAgent, CodeAnalyzerAgent,
                    FileOperationsAgent, TestGeneratorAgent, RefactoringAgent, 
-                   GitAgent, DocumentationAgent)
+                   GitAgent, DocumentationAgent, CommandLineAgent, ContextManagerAgent)
 from utils.file_watcher import BackgroundIndexer
 
 class AgentCLI:
@@ -38,6 +39,14 @@ class AgentCLI:
         self.console.print(f"[green]✓[/green] Default Model: {self.config.ollama.model}")
         self.console.print()
         
+        # Check and download required models
+        model_manager = ModelManager(self.config, self.console)
+        models_ready = await model_manager.check_and_pull_models()
+        
+        if not models_ready:
+            self.console.print("[yellow]⚠️ Continuing with available models. Some agents may have limited functionality.[/yellow]")
+        
+        self.console.print()
         self.supervisor = SupervisorAgent("supervisor", self.config)
         
         # Start background indexing if enabled
@@ -261,6 +270,13 @@ class AgentCLI:
   AST Indexing: {self.config.code_analyzer.enable_ast_indexing}
   Auto Background Indexing: {self.config.code_analyzer.auto_background_indexing}
   Watch File Changes: {self.config.code_analyzer.watch_file_changes}
+
+[cyan]Command Line:[/cyan]
+  Safety Mode: {self.config.command_line.safety_mode.upper()}
+  Safe Commands: {len(self.config.command_line.safe_commands)} commands
+  User Whitelist: {len(self.config.command_line.user_whitelist)} commands
+  Max Output Length: {self.config.command_line.max_output_length}
+  Command Timeout: {self.config.command_line.timeout_seconds}s
 """
         self.console.print(Panel(config_text, title="Configuration", border_style="blue"))
     
@@ -270,55 +286,67 @@ class AgentCLI:
 [cyan]🔍 WebSearchAgent[/cyan] ([yellow]llama3.1:8b[/yellow])
 • Searches web for documentation and examples
 • Finds best practices and troubleshooting info
-• Provides up-to-date technical information
+• Optimized for natural language queries
 
 [cyan]🔍 CodeReviewAgent[/cyan] ([yellow]qwen2.5-coder:32b[/yellow])
 • Analyzes code for bugs and security issues
 • Checks code quality and best practices
 • Provides refactoring suggestions
-• Identifies performance problems
+• Code-specialized AI model
 
 [cyan]📊 CodeAnalyzerAgent[/cyan] ([yellow]qwen2.5-coder:32b[/yellow])
 • Indexes codebase structure and dependencies
 • Tracks functions, classes, and imports
-• Analyzes code metrics and complexity
-• Finds code patterns and duplications
+• AST analysis and code metrics
+• Code-specialized AI model
 
 [cyan]📁 FileOperationsAgent[/cyan] ([yellow]qwen2.5-coder:32b[/yellow])
 • Reads, writes, and edits files directly
-• Creates and manages directory structures
-• Handles file operations safely
-• Supports multiple file formats
+• Code-aware file manipulation
+• Handles multiple programming languages
+• Code-specialized AI model
 
 [cyan]🧪 TestGeneratorAgent[/cyan] ([yellow]qwen2.5-coder:32b[/yellow])
 • Generates comprehensive unit tests
 • Creates integration and end-to-end tests
-• Provides test data and mock objects
-• Follows testing best practices
+• Test code generation specialist
+• Code-specialized AI model
 
 [cyan]🔄 RefactoringAgent[/cyan] ([yellow]qwen2.5-coder:32b[/yellow])
 • Analyzes code for refactoring opportunities
-• Suggests performance optimizations
-• Applies design patterns
-• Modernizes legacy code
+• Applies design patterns and optimizations
+• Code structure improvement
+• Code-specialized AI model
 
 [cyan]📝 GitAgent[/cyan] ([yellow]llama3.1:8b[/yellow])
 • Manages Git operations and workflows
 • Generates meaningful commit messages
-• Helps resolve merge conflicts
-• Suggests branching strategies
+• Natural language for Git descriptions
+• Optimized for communication tasks
 
 [cyan]📚 DocumentationAgent[/cyan] ([yellow]llama3.1:8b[/yellow])
 • Creates comprehensive documentation
-• Generates README files and API docs
-• Adds docstrings and comments
-• Writes user guides and tutorials
+• Generates README files and user guides
+• Natural language writing specialist
+• Optimized for clear communication
 
 [cyan]🎯 SupervisorAgent[/cyan] ([yellow]qwen2.5:32b[/yellow])
 • Coordinates multiple agents for complex tasks
-• Routes requests to appropriate specialists
-• Synthesizes results from multiple agents
-• Manages overall task workflow
+• Advanced reasoning and orchestration
+• Multi-step task planning
+• Large reasoning model
+
+[cyan]🖥️ CommandLineAgent[/cyan] ([yellow]llama3.1:8b[/yellow])
+• Executes system commands with safety controls
+• Three safety modes: SAFE, WHITELIST, YOLO
+• Explains commands and suggests alternatives
+• Command safety analysis and risk assessment
+
+[cyan]🧠 ContextManagerAgent[/cyan] ([yellow]llama3.1:8b[/yellow])
+• Intelligent conversation memory management
+• Automatic context summarization and storage
+• Retrieves relevant past context for current tasks
+• Maintains session insights and task relationships
 """
         self.console.print(Panel(agents_text, title="Agent Capabilities & Models", border_style="green"))
 

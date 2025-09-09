@@ -9,6 +9,8 @@ from .test_generator_agent import TestGeneratorAgent
 from .refactoring_agent import RefactoringAgent
 from .git_agent import GitAgent
 from .documentation_agent import DocumentationAgent
+from .command_line_agent import CommandLineAgent
+from .context_manager_agent import ContextManagerAgent
 
 class SupervisorAgent(BaseAgent):
     def __init__(self, name: str, config):
@@ -30,9 +32,12 @@ class SupervisorAgent(BaseAgent):
    - RefactoringAgent: Code optimization, restructuring, pattern application
    - GitAgent: Version control operations, commit messages, workflows
    - DocumentationAgent: Creating docs, README files, API references
+   - CommandLineAgent: System command execution with safety controls
+   - ContextManagerAgent: Intelligent conversation memory and context management
 3. Coordinate the workflow between agents
 4. Synthesize results from multiple agents into coherent responses
 5. Manage the overall task progress and ensure completion
+6. Utilize context management for better continuity and learning
 
 You should:
 - Determine which agents are needed for each task
@@ -41,7 +46,7 @@ You should:
 - Combine results meaningfully
 - Track task completion status"""
     
-    async def _build_workflow(self):
+    def _build_workflow(self):
         workflow = StateGraph(AgentState)
         
         # Add all agent nodes
@@ -54,6 +59,8 @@ You should:
         workflow.add_node("refactoring", self._refactoring_node)
         workflow.add_node("git", self._git_node)
         workflow.add_node("documentation", self._documentation_node)
+        workflow.add_node("command_line", self._command_line_node)
+        workflow.add_node("context_manager", self._context_manager_node)
         workflow.add_node("synthesize", self._synthesize_node)
         
         # Add conditional routing from supervisor
@@ -69,6 +76,8 @@ You should:
                 "refactoring": "refactoring",
                 "git": "git",
                 "documentation": "documentation",
+                "command_line": "command_line",
+                "context_manager": "context_manager",
                 "synthesize": "synthesize",
                 "end": END
             }
@@ -83,6 +92,8 @@ You should:
         workflow.add_edge("refactoring", "synthesize")
         workflow.add_edge("git", "synthesize")
         workflow.add_edge("documentation", "synthesize")
+        workflow.add_edge("command_line", "synthesize")
+        workflow.add_edge("context_manager", "synthesize")
         workflow.add_edge("synthesize", END)
         
         workflow.set_entry_point("supervisor")
@@ -103,6 +114,10 @@ You should:
         if not state.current_task:
             state.next_agent = "end"
             return self.add_message(state, "supervisor", "No task provided")
+        
+        # Auto-manage context if conversation is getting long
+        if len(state.messages) >= self.config.agents.memory_window - 5:
+            await self._auto_manage_context(state)
         
         task_analysis = await self._analyze_task(state.current_task)
         
@@ -126,7 +141,7 @@ Task: {task}
 
 Classify this task and respond with a JSON object containing:
 {{
-    "task_type": "websearch|code_review|code_analysis|file_operations|test_generation|refactoring|git|documentation|multi_agent",
+    "task_type": "websearch|code_review|code_analysis|file_operations|test_generation|refactoring|git|documentation|context_management|multi_agent",
     "complexity": "low|medium|high", 
     "requires_search": true/false,
     "requires_code_review": true/false,
@@ -136,6 +151,8 @@ Classify this task and respond with a JSON object containing:
     "requires_refactoring": true/false,
     "requires_git": true/false,
     "requires_documentation": true/false,
+    "requires_command_line": true/false,
+    "requires_context_management": true/false,
     "primary_focus": "description of main objective",
     "subtasks": ["list", "of", "subtasks"]
 }}
@@ -149,6 +166,8 @@ Consider:
 - Does this need code refactoring or optimization?
 - Does this involve Git operations or version control?
 - Does this need documentation creation or updates?
+- Does this need system/shell command execution?
+- Does this need conversation context management or memory?
 - Is this a complex task requiring multiple agents?"""
         
         response = await self.generate_response(prompt)
@@ -187,6 +206,10 @@ Consider:
             return "git"
         elif task_type == "documentation" or analysis.get("requires_documentation", False):
             return "documentation"
+        elif task_type == "command_line" or analysis.get("requires_command_line", False):
+            return "command_line"
+        elif task_type == "context_management" or analysis.get("requires_context_management", False):
+            return "context_manager"
         else:
             return "synthesize"
     
@@ -304,6 +327,56 @@ Consider:
         state.context["agents_used"].append("documentation")
         
         return state
+    
+    async def _command_line_node(self, state: AgentState) -> AgentState:
+        if "command_line" not in self.agents:
+            self.agents["command_line"] = CommandLineAgent("command_line", self.config)
+        
+        agent = self.agents["command_line"]
+        
+        async with agent:
+            result_state = await agent.process(state)
+        
+        state.messages.extend(result_state.messages[len(state.messages):])
+        state.context["agents_used"].append("command_line")
+        
+        return state
+    
+    async def _context_manager_node(self, state: AgentState) -> AgentState:
+        if "context_manager" not in self.agents:
+            self.agents["context_manager"] = ContextManagerAgent("context_manager", self.config)
+        
+        agent = self.agents["context_manager"]
+        
+        async with agent:
+            result_state = await agent.process(state)
+        
+        state.messages.extend(result_state.messages[len(state.messages):])
+        state.context["agents_used"].append("context_manager")
+        
+        return state
+    
+    async def _auto_manage_context(self, state: AgentState):
+        """Automatically manage context when memory window is nearly full"""
+        try:
+            if "context_manager" not in self.agents:
+                self.agents["context_manager"] = ContextManagerAgent("context_manager", self.config)
+            
+            context_agent = self.agents["context_manager"]
+            
+            # Summarize older messages before they get truncated
+            messages_to_summarize = max(5, len(state.messages) - 10)
+            
+            async with context_agent:
+                context_state = AgentState(
+                    current_task=f"summarize_messages:{messages_to_summarize}",
+                    messages=state.messages
+                )
+                await context_agent.process(context_state)
+            
+        except Exception as e:
+            # Don't fail the main workflow if context management fails
+            print(f"Warning: Auto-context management failed: {e}")
     
     async def _synthesize_node(self, state: AgentState) -> AgentState:
         agents_used = state.context.get("agents_used", [])

@@ -7,9 +7,11 @@ A sophisticated multi-agent coding assistant powered by LangGraph and Ollama, de
 - **Multi-Agent Architecture**: Coordinated agents working together for complex tasks
 - **Local AI Models**: Uses Ollama for privacy and control over your AI models  
 - **Per-Agent Model Optimization**: Different models optimized for each agent's specialty
-- **Automatic Background Indexing**: Real-time codebase analysis with file watching
+- **Automatic Model Management**: Download required models on first run
+- **Automatic Background Indexing**: Real-time codebase analysis with file watching  
 - **Flexible Indexing Control**: Enable/disable automatic indexing with CLI options
-- **Specialized Agents** (9 total):
+- **Command Safety Controls**: Three security modes for system command execution
+- **Specialized Agents** (10 total):
   - 🔍 **WebSearchAgent** (`llama3.1:8b`): Searches for documentation, examples, best practices
   - 🔍 **CodeReviewAgent** (`qwen2.5-coder:32b`): Analyzes code quality, bugs, security issues
   - 📊 **CodeAnalyzerAgent** (`qwen2.5-coder:32b`): Indexes codebases, tracks dependencies, AST analysis
@@ -18,6 +20,7 @@ A sophisticated multi-agent coding assistant powered by LangGraph and Ollama, de
   - 🔄 **RefactoringAgent** (`qwen2.5-coder:32b`): Code optimization, design patterns, modernization
   - 📝 **GitAgent** (`llama3.1:8b`): Git workflows, commit messages, merge conflict resolution
   - 📚 **DocumentationAgent** (`llama3.1:8b`): README files, API docs, docstrings, user guides
+  - 🖥️ **CommandLineAgent** (`llama3.1:8b`): System command execution with safety controls
   - 🎯 **SupervisorAgent** (`qwen2.5:32b`): Orchestrates multi-agent workflows using LangGraph
 
 ## 📋 Prerequisites
@@ -82,6 +85,18 @@ You can use any Ollama-compatible model:
 ollama pull deepseek-coder:33b
 ollama pull codellama:34b
 ollama pull starcoder2:15b
+```
+
+### Command Line Safety Modes
+The CommandLineAgent operates in three safety modes:
+
+- **SAFE** (default): Only pre-approved read-only commands (ls, cat, grep, etc.)
+- **WHITELIST**: Safe commands + user-approved commands (prompts for approval)  
+- **YOLO**: All commands allowed (use with extreme caution)
+
+Configure via environment variable:
+```bash
+export COMMAND_SAFETY_MODE="safe"  # or "whitelist" or "yolo"
 ```
 
 ## 🚀 Usage
@@ -159,6 +174,13 @@ You: Add comprehensive docstrings to all functions in this file
 You: Search for best practices for async Python error handling
 ```
 
+**Command Line Operations:**
+```
+You: List all Python files in the current directory
+You: Check the status of the development server
+You: Run the test suite and show me the results
+```
+
 **Complex Multi-Agent Tasks:**
 ```
 You: I need to implement user authentication. Create the models, generate tests, add documentation, and suggest a Git workflow.
@@ -177,7 +199,8 @@ SupervisorAgent (qwen2.5:32b) - LangGraph Orchestration
 ├── TestGeneratorAgent (qwen2.5-coder:32b) - Test Creation & Coverage
 ├── RefactoringAgent (qwen2.5-coder:32b) - Code Optimization
 ├── GitAgent (llama3.1:8b) - Version Control Operations
-└── DocumentationAgent (llama3.1:8b) - Documentation Generation
+├── DocumentationAgent (llama3.1:8b) - Documentation Generation
+└── CommandLineAgent (llama3.1:8b) - System Command Execution
 ```
 
 ### Data Flow
@@ -261,6 +284,7 @@ langgraph-ollama-agent/
 │   ├── refactoring_agent.py
 │   ├── git_agent.py
 │   ├── documentation_agent.py
+│   ├── command_line_agent.py
 │   └── supervisor_agent.py
 ├── cli/                   # Command line interface
 │   └── main.py
@@ -327,6 +351,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [x] ~~Test generation and coverage analysis~~ ✅ **Implemented**
 - [x] ~~Code refactoring and optimization~~ ✅ **Implemented**
 - [x] ~~Documentation generation~~ ✅ **Implemented**
+- [x] ~~Command line operations with safety controls~~ ✅ **Implemented**
+- [x] ~~Automatic model downloading and management~~ ✅ **Implemented**
 - [ ] Integration with popular IDEs (VS Code extension)
 - [ ] Web interface option
 - [ ] Custom workflow definitions via YAML/JSON

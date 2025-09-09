@@ -7,6 +7,8 @@ from .test_generator_agent import TestGeneratorAgent
 from .refactoring_agent import RefactoringAgent
 from .git_agent import GitAgent
 from .documentation_agent import DocumentationAgent
+from .command_line_agent import CommandLineAgent
+from .context_manager_agent import ContextManagerAgent
 
 __all__ = [
     "WebSearchAgent", 
@@ -17,5 +19,7 @@ __all__ = [
     "TestGeneratorAgent", 
     "RefactoringAgent",
     "GitAgent",
-    "DocumentationAgent"
+    "DocumentationAgent",
+    "CommandLineAgent",
+    "ContextManagerAgent"
 ]

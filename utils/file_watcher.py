@@ -179,8 +179,11 @@ class BackgroundIndexer:
         try:
             self.console.print("[yellow]🔄 Performing initial code indexing...[/yellow]")
             
+            # Import AgentState here to avoid circular imports
+            from core.base_agent import AgentState
+            
             async with self.code_analyzer:
-                index_state = type(self.code_analyzer.current_state)(
+                index_state = AgentState(
                     current_task=f"index_directory:{root_path}"
                 )
                 await self.code_analyzer.process(index_state)
