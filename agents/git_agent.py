@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from core.base_agent import BaseAgent, AgentState
 
+
 class GitAgent(BaseAgent):
     def _default_system_prompt(self) -> str:
         return """You are a Git version control specialist that helps with repository management and workflow automation. Your role is to:
@@ -39,83 +40,82 @@ Best practices you follow:
     async def process(self, state: AgentState) -> AgentState:
         if not state.current_task:
             return self.add_message(state, "assistant", "No Git operation specified")
-        
+
         task = state.current_task
-        
+
         try:
             if task.startswith("git_status"):
                 result = await self._git_status()
-            
+
             elif task.startswith("generate_commit_message:"):
                 changes = task.replace("generate_commit_message:", "").strip()
                 result = await self._generate_commit_message(changes)
-            
+
             elif task.startswith("analyze_changes"):
                 result = await self._analyze_changes()
-            
+
             elif task.startswith("suggest_branch:"):
                 feature = task.replace("suggest_branch:", "").strip()
                 result = await self._suggest_branch_name(feature)
-            
+
             elif task.startswith("resolve_conflict:"):
                 file_path = task.replace("resolve_conflict:", "").strip()
                 result = await self._help_resolve_conflict(file_path)
-            
+
             elif task.startswith("analyze_history:"):
                 params = task.replace("analyze_history:", "").strip()
                 result = await self._analyze_git_history(params)
-            
+
             elif task.startswith("suggest_workflow"):
                 result = await self._suggest_workflow()
-            
+
             else:
                 result = await self._intelligent_git_assistance(task)
-            
+
             return self.add_message(
-                state,
-                "assistant",
-                result,
-                metadata={"git_operation": True}
+                state, "assistant", result, metadata={"git_operation": True}
             )
-        
+
         except Exception as e:
             return self.add_message(
-                state,
-                "assistant",
-                f"Git operation failed: {str(e)}"
+                state, "assistant", f"Git operation failed: {str(e)}"
             )
-    
+
     async def _git_status(self) -> str:
         """Get comprehensive Git repository status"""
         if not self._is_git_repo():
             return "Not a Git repository. Use 'git init' to initialize a repository."
-        
+
         try:
             # Get various Git status information
             status = self._run_git_command("status --porcelain")
             branch = self._run_git_command("branch --show-current").strip()
-            unpushed = self._run_git_command("log --oneline @{u}..HEAD", allow_error=True)
-            unpulled = self._run_git_command("log --oneline HEAD..@{u}", allow_error=True)
-            
+            unpushed = self._run_git_command(
+                "log --oneline @{u}..HEAD", allow_error=True
+            )
+            unpulled = self._run_git_command(
+                "log --oneline HEAD..@{u}", allow_error=True
+            )
+
             # Parse status
             modified = []
             staged = []
             untracked = []
-            
-            for line in status.split('\n'):
+
+            for line in status.split("\n"):
                 if not line.strip():
                     continue
-                
+
                 status_code = line[:2]
                 file_path = line[3:]
-                
-                if status_code[0] in ['M', 'A', 'D', 'R', 'C']:
+
+                if status_code[0] in ["M", "A", "D", "R", "C"]:
                     staged.append(f"{status_code[0]} {file_path}")
-                if status_code[1] in ['M', 'D']:
+                if status_code[1] in ["M", "D"]:
                     modified.append(f"{status_code[1]} {file_path}")
-                if status_code == '??':
+                if status_code == "??":
                     untracked.append(file_path)
-            
+
             # Build comprehensive status report
             report = f"""📊 Git Repository Status
 
@@ -135,7 +135,7 @@ Current Branch: {branch or 'HEAD (detached)'}
 
 💡 Suggestions:
 """
-            
+
             # Add contextual suggestions
             if staged:
                 report += "\n  • Ready to commit staged changes"
@@ -147,12 +147,12 @@ Current Branch: {branch or 'HEAD (detached)'}
                 report += "\n  • Push commits to remote repository"
             if unpulled.strip():
                 report += "\n  • Pull latest changes from remote"
-            
+
             return report
-            
+
         except Exception as e:
             return f"Failed to get Git status: {str(e)}"
-    
+
     async def _generate_commit_message(self, changes: str) -> str:
         """Generate meaningful commit messages based on changes"""
         if not changes:
@@ -164,7 +164,7 @@ Current Branch: {branch or 'HEAD (detached)'}
                 changes = diff
             except Exception:
                 changes = "No changes detected"
-        
+
         prompt = f"""Generate a clear, meaningful commit message for these changes:
 
 Changes:
@@ -187,23 +187,23 @@ Guidelines:
 5. Be descriptive but concise
 
 Provide multiple commit message options with explanations."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _analyze_changes(self) -> str:
         """Analyze current changes in the repository"""
         if not self._is_git_repo():
             return "Not a Git repository."
-        
+
         try:
             # Get diff information
             staged_diff = self._run_git_command("diff --cached --stat")
             unstaged_diff = self._run_git_command("diff --stat")
-            
+
             # Get detailed changes
             staged_changes = self._run_git_command("diff --cached --name-only")
             unstaged_changes = self._run_git_command("diff --name-only")
-            
+
             analysis = f"""🔍 Git Changes Analysis
 
 📊 Staged Changes Statistics:
@@ -216,11 +216,11 @@ Provide multiple commit message options with explanations."""
 Staged: {', '.join(staged_changes.split()) if staged_changes.strip() else 'none'}
 Unstaged: {', '.join(unstaged_changes.split()) if unstaged_changes.strip() else 'none'}
 """
-            
+
             # Add AI analysis of the changes
             if staged_changes.strip() or unstaged_changes.strip():
-                all_changes = (staged_changes + '\n' + unstaged_changes).strip()
-                
+                all_changes = (staged_changes + "\n" + unstaged_changes).strip()
+
                 prompt = f"""Analyze these code changes and provide insights:
 
 Changed files:
@@ -233,15 +233,15 @@ Provide analysis on:
 4. Testing recommendations
 5. Documentation needs
 6. Code review considerations"""
-                
+
                 ai_analysis = await self.generate_response(prompt)
                 analysis += f"\n🤖 AI Analysis:\n{ai_analysis}"
-            
+
             return analysis
-            
+
         except Exception as e:
             return f"Failed to analyze changes: {str(e)}"
-    
+
     async def _suggest_branch_name(self, feature_description: str) -> str:
         """Suggest appropriate branch names for features"""
         prompt = f"""Suggest appropriate Git branch names for this feature:
@@ -263,22 +263,22 @@ Guidelines:
 - Keep under 50 characters
 
 Provide multiple options with rationale for each."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _help_resolve_conflict(self, file_path: str) -> str:
         """Help resolve merge conflicts"""
         if not os.path.exists(file_path):
             return f"File not found: {file_path}"
-        
+
         try:
             # Check if file has conflict markers
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            
-            if '<<<<<<<' not in content:
+
+            if "<<<<<<<" not in content:
                 return f"No merge conflicts detected in {file_path}"
-            
+
             prompt = f"""Help resolve merge conflicts in this file:
 
 File: {file_path}
@@ -306,27 +306,29 @@ Provide conflict resolution guidance:
 4. **Testing Recommendations**:
    - What to test after resolution
    - Potential edge cases to consider"""
-            
+
             return await self.generate_response(prompt)
-            
+
         except Exception as e:
             return f"Failed to analyze conflict: {str(e)}"
-    
+
     async def _analyze_git_history(self, parameters: str) -> str:
         """Analyze Git commit history and patterns"""
         if not self._is_git_repo():
             return "Not a Git repository."
-        
+
         try:
             # Get commit history
             log_command = "log --oneline --graph -20"
             if parameters.strip():
                 log_command += f" {parameters}"
-            
+
             history = self._run_git_command(log_command)
             contributors = self._run_git_command("shortlog -sn")
-            recent_activity = self._run_git_command("log --oneline --since='1 month ago'")
-            
+            recent_activity = self._run_git_command(
+                "log --oneline --since='1 month ago'"
+            )
+
             analysis = f"""📈 Git History Analysis
 
 Recent Commits:
@@ -339,7 +341,7 @@ Recent Commits:
 {len(recent_activity.split(chr(10)))} commits
 
 """
-            
+
             # Add AI insights
             prompt = f"""Analyze this Git repository history and provide insights:
 
@@ -356,31 +358,31 @@ Provide analysis on:
 4. Potential workflow improvements
 5. Branch management observations
 6. Release patterns if visible"""
-            
+
             ai_insights = await self.generate_response(prompt)
             analysis += f"🤖 Insights:\n{ai_insights}"
-            
+
             return analysis
-            
+
         except Exception as e:
             return f"Failed to analyze Git history: {str(e)}"
-    
+
     async def _suggest_workflow(self) -> str:
         """Suggest appropriate Git workflows"""
         if not self._is_git_repo():
             return "Not a Git repository."
-        
+
         try:
             # Analyze repository characteristics
             branches = self._run_git_command("branch -a")
             remotes = self._run_git_command("remote -v")
             contributors = self._run_git_command("shortlog -sn")
-            
+
             analysis = f"""Repository Analysis:
 - Branches: {len(branches.split())}
 - Remotes: {len(remotes.split(chr(10)))}  
 - Contributors: {len(contributors.split(chr(10)))}"""
-            
+
             prompt = f"""Suggest appropriate Git workflows for this repository:
 
 {analysis}
@@ -408,12 +410,12 @@ Consider and recommend:
    - Automated testing
 
 Provide specific recommendations based on team size and project characteristics."""
-            
+
             return await self.generate_response(prompt)
-            
+
         except Exception as e:
             return f"Failed to suggest workflow: {str(e)}"
-    
+
     async def _intelligent_git_assistance(self, task: str) -> str:
         """Handle complex Git requests using AI"""
         prompt = f"""Provide Git assistance for this request:
@@ -430,13 +432,16 @@ Analyze the request and provide:
 7. Related workflows or processes
 
 Focus on practical, safe Git operations with clear explanations."""
-        
+
         return await self.generate_response(prompt)
-    
+
     def _is_git_repo(self) -> bool:
         """Check if current directory is a Git repository"""
-        return os.path.exists('.git') or self._run_git_command("rev-parse --git-dir", allow_error=True) != ""
-    
+        return (
+            os.path.exists(".git")
+            or self._run_git_command("rev-parse --git-dir", allow_error=True) != ""
+        )
+
     def _run_git_command(self, command: str, allow_error: bool = False) -> str:
         """Run a Git command and return the output"""
         try:
@@ -445,7 +450,7 @@ Focus on practical, safe Git operations with clear explanations."""
                 shell=True,
                 capture_output=True,
                 text=True,
-                check=not allow_error
+                check=not allow_error,
             )
             return result.stdout
         except subprocess.CalledProcessError as e:

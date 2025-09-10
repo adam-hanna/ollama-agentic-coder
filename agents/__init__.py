@@ -13,17 +13,17 @@ from .coding_agent import CodingAgent
 from .architecting_agent import ArchitectingAgent
 
 __all__ = [
-    "WebSearchAgent", 
-    "CodeReviewAgent", 
-    "CodeAnalyzerAgent", 
+    "WebSearchAgent",
+    "CodeReviewAgent",
+    "CodeAnalyzerAgent",
     "SupervisorAgent",
     "FileOperationsAgent",
-    "TestGeneratorAgent", 
+    "TestGeneratorAgent",
     "RefactoringAgent",
     "GitAgent",
     "DocumentationAgent",
     "CommandLineAgent",
     "ContextManagerAgent",
     "CodingAgent",
-    "ArchitectingAgent"
+    "ArchitectingAgent",
 ]

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from core.base_agent import BaseAgent, AgentState
 
+
 class DocumentationAgent(BaseAgent):
     def _default_system_prompt(self) -> str:
         return """You are a documentation specialist that creates clear, comprehensive, and helpful documentation for code projects. Your role is to:
@@ -37,61 +38,58 @@ Types of documentation you create:
 
     async def process(self, state: AgentState) -> AgentState:
         if not state.current_task:
-            return self.add_message(state, "assistant", "No documentation task specified")
-        
+            return self.add_message(
+                state, "assistant", "No documentation task specified"
+            )
+
         task = state.current_task
-        
+
         try:
             if task.startswith("generate_readme:"):
                 path = task.replace("generate_readme:", "").strip()
                 result = await self._generate_readme(path)
-            
+
             elif task.startswith("document_api:"):
                 file_path = task.replace("document_api:", "").strip()
                 result = await self._document_api(file_path)
-            
+
             elif task.startswith("add_docstrings:"):
                 file_path = task.replace("add_docstrings:", "").strip()
                 result = await self._add_docstrings(file_path)
-            
+
             elif task.startswith("create_user_guide:"):
                 spec = task.replace("create_user_guide:", "").strip()
                 result = await self._create_user_guide(spec)
-            
+
             elif task.startswith("generate_changelog:"):
                 path = task.replace("generate_changelog:", "").strip()
                 result = await self._generate_changelog(path)
-            
+
             elif task.startswith("document_architecture:"):
                 path = task.replace("document_architecture:", "").strip()
                 result = await self._document_architecture(path)
-            
+
             else:
                 result = await self._intelligent_documentation(task)
-            
+
             return self.add_message(
-                state,
-                "assistant",
-                result,
-                metadata={"documentation": True}
+                state, "assistant", result, metadata={"documentation": True}
             )
-        
+
         except Exception as e:
             return self.add_message(
-                state,
-                "assistant",
-                f"Documentation generation failed: {str(e)}"
+                state, "assistant", f"Documentation generation failed: {str(e)}"
             )
-    
+
     async def _generate_readme(self, project_path: str) -> str:
         """Generate comprehensive README.md for a project"""
         if not os.path.exists(project_path):
             return f"Project path not found: {project_path}"
-        
+
         try:
             # Analyze project structure
             project_analysis = self._analyze_project_structure(project_path)
-            
+
             prompt = f"""Generate a comprehensive README.md for this project:
 
 Project Analysis:
@@ -145,24 +143,24 @@ Create a README.md with the following sections:
 - Community resources
 
 Make it professional, clear, and actionable with proper Markdown formatting."""
-            
+
             return await self.generate_response(prompt)
-        
+
         except Exception as e:
             return f"Failed to generate README: {str(e)}"
-    
+
     async def _document_api(self, file_path: str) -> str:
         """Generate API documentation for a code file"""
         if not os.path.exists(file_path):
             return f"File not found: {file_path}"
-        
+
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 code_content = f.read()
-            
+
             # Analyze code structure for API documentation
             api_analysis = self._analyze_api_structure(code_content, file_path)
-            
+
             prompt = f"""Generate comprehensive API documentation for this code:
 
 File: {file_path}
@@ -206,21 +204,21 @@ For each function, include:
 - Error handling examples
 
 Use proper formatting with code blocks, tables, and cross-references."""
-            
+
             return await self.generate_response(prompt)
-        
+
         except Exception as e:
             return f"Failed to generate API documentation: {str(e)}"
-    
+
     async def _add_docstrings(self, file_path: str) -> str:
         """Add comprehensive docstrings to code"""
         if not os.path.exists(file_path):
             return f"File not found: {file_path}"
-        
+
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 code_content = f.read()
-            
+
             prompt = f"""Add comprehensive docstrings to this code:
 
 File: {file_path}
@@ -257,12 +255,12 @@ Requirements:
 8. Keep docstrings concise but comprehensive
 
 Show the complete updated code with all docstrings added."""
-            
+
             return await self.generate_response(prompt)
-        
+
         except Exception as e:
             return f"Failed to add docstrings: {str(e)}"
-    
+
     async def _create_user_guide(self, specification: str) -> str:
         """Create user guides and tutorials"""
         prompt = f"""Create a comprehensive user guide:
@@ -311,33 +309,34 @@ Generate a user-friendly guide with:
 - Migration guides
 
 Use clear headings, bullet points, code examples, and screenshots where helpful."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _generate_changelog(self, project_path: str) -> str:
         """Generate changelog from Git history or project analysis"""
         if not os.path.exists(project_path):
             return f"Project path not found: {project_path}"
-        
+
         try:
             # Try to get Git history if available
             git_history = ""
             try:
                 import subprocess
+
                 result = subprocess.run(
                     "git log --oneline --no-merges -20",
                     shell=True,
                     capture_output=True,
                     text=True,
-                    cwd=project_path
+                    cwd=project_path,
                 )
                 if result.returncode == 0:
                     git_history = result.stdout
             except Exception:
                 pass
-            
+
             project_info = self._analyze_project_structure(project_path)
-            
+
             prompt = f"""Generate a CHANGELOG.md for this project:
 
 Project Information:
@@ -377,20 +376,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security improvements
 
 Use semantic versioning and categorize changes appropriately. If Git history is available, parse commit messages to extract changes."""
-            
+
             return await self.generate_response(prompt)
-        
+
         except Exception as e:
             return f"Failed to generate changelog: {str(e)}"
-    
+
     async def _document_architecture(self, project_path: str) -> str:
         """Generate architecture documentation"""
         if not os.path.exists(project_path):
             return f"Project path not found: {project_path}"
-        
+
         try:
             project_analysis = self._analyze_project_structure(project_path)
-            
+
             prompt = f"""Generate architecture documentation for this project:
 
 Project Analysis:
@@ -449,12 +448,12 @@ Create comprehensive architecture documentation:
 - Monitoring and logging
 
 Use diagrams, code examples, and clear explanations."""
-            
+
             return await self.generate_response(prompt)
-        
+
         except Exception as e:
             return f"Failed to generate architecture documentation: {str(e)}"
-    
+
     async def _intelligent_documentation(self, task: str) -> str:
         """Handle complex documentation requests using AI"""
         prompt = f"""Handle this documentation request:
@@ -470,110 +469,129 @@ Provide appropriate documentation based on the request:
 6. Consider maintenance and update requirements
 
 Focus on creating practical, useful documentation that serves its intended purpose."""
-        
+
         return await self.generate_response(prompt)
-    
+
     def _analyze_project_structure(self, project_path: str) -> str:
         """Analyze project structure for documentation purposes"""
         analysis = []
-        
+
         try:
             # Get directory structure
             analysis.append(f"Project Path: {project_path}")
-            
+
             # Count files by type
             file_types = {}
             total_files = 0
-            
+
             for root, dirs, files in os.walk(project_path):
                 # Skip hidden directories and common build directories
-                dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['node_modules', '__pycache__', 'build', 'dist']]
-                
+                dirs[:] = [
+                    d
+                    for d in dirs
+                    if not d.startswith(".")
+                    and d not in ["node_modules", "__pycache__", "build", "dist"]
+                ]
+
                 for file in files:
-                    if file.startswith('.'):
+                    if file.startswith("."):
                         continue
-                    
+
                     ext = Path(file).suffix.lower()
                     file_types[ext] = file_types.get(ext, 0) + 1
                     total_files += 1
-            
+
             analysis.append(f"Total Files: {total_files}")
             analysis.append("File Types:")
-            for ext, count in sorted(file_types.items(), key=lambda x: x[1], reverse=True):
+            for ext, count in sorted(
+                file_types.items(), key=lambda x: x[1], reverse=True
+            ):
                 if count > 1:
                     analysis.append(f"  {ext or '(no extension)'}: {count} files")
-            
+
             # Look for key files
-            key_files = ['README.md', 'package.json', 'requirements.txt', 'setup.py', 'Dockerfile', 'docker-compose.yml']
+            key_files = [
+                "README.md",
+                "package.json",
+                "requirements.txt",
+                "setup.py",
+                "Dockerfile",
+                "docker-compose.yml",
+            ]
             found_files = []
             for key_file in key_files:
                 if os.path.exists(os.path.join(project_path, key_file)):
                     found_files.append(key_file)
-            
+
             if found_files:
                 analysis.append(f"Key Files Found: {', '.join(found_files)}")
-            
+
         except Exception as e:
             analysis.append(f"Error analyzing project: {str(e)}")
-        
+
         return "\n".join(analysis)
-    
+
     def _analyze_api_structure(self, code: str, file_path: str) -> str:
         """Analyze code structure for API documentation"""
         analysis = []
         language = self._detect_language(file_path)
-        
+
         if language == "python":
             try:
                 tree = ast.parse(code)
-                
+
                 classes = []
                 functions = []
-                
+
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef):
-                        methods = [n.name for n in node.body if isinstance(n, ast.FunctionDef)]
-                        classes.append({
-                            'name': node.name,
-                            'methods': methods,
-                            'line': node.lineno
-                        })
-                    elif isinstance(node, ast.FunctionDef) and not any(isinstance(parent, ast.ClassDef) for parent in ast.walk(tree) if hasattr(parent, 'body') and node in getattr(parent, 'body', [])):
+                        methods = [
+                            n.name for n in node.body if isinstance(n, ast.FunctionDef)
+                        ]
+                        classes.append(
+                            {"name": node.name, "methods": methods, "line": node.lineno}
+                        )
+                    elif isinstance(node, ast.FunctionDef) and not any(
+                        isinstance(parent, ast.ClassDef)
+                        for parent in ast.walk(tree)
+                        if hasattr(parent, "body")
+                        and node in getattr(parent, "body", [])
+                    ):
                         args = [arg.arg for arg in node.args.args]
-                        functions.append({
-                            'name': node.name,
-                            'args': args,
-                            'line': node.lineno
-                        })
-                
+                        functions.append(
+                            {"name": node.name, "args": args, "line": node.lineno}
+                        )
+
                 analysis.append(f"Classes: {len(classes)}")
                 for cls in classes:
-                    analysis.append(f"  - {cls['name']} ({len(cls['methods'])} methods)")
-                
+                    analysis.append(
+                        f"  - {cls['name']} ({len(cls['methods'])} methods)"
+                    )
+
                 analysis.append(f"Functions: {len(functions)}")
                 for func in functions:
                     analysis.append(f"  - {func['name']}({', '.join(func['args'])})")
-                
+
             except SyntaxError:
                 analysis.append("Syntax error in code - API analysis limited")
-        
+
         else:
             analysis.append(f"Language: {language}")
             analysis.append("Detailed API analysis not available for this language")
-        
+
         return "\n".join(analysis)
-    
+
     def _detect_language(self, file_path: str) -> str:
         """Detect programming language from file extension"""
         ext = Path(file_path).suffix.lower()
         lang_map = {
-            '.py': 'python',
-            '.js': 'javascript',
-            '.ts': 'typescript',
-            '.java': 'java',
-            '.cpp': 'cpp',
-            '.c': 'c',
-            '.go': 'go',
-            '.rs': 'rust'
+            ".py": "python",
+            ".js": "javascript",
+            ".ts": "typescript",
+            ".java": "java",
+            ".cpp": "cpp",
+            ".c": "c",
+            ".go": "go",
+            ".rs": "rust",
         }
-        return lang_map.get(ext, 'unknown')
+        return lang_map.get(ext, "unknown")

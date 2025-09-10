@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional
 from core.base_agent import BaseAgent, AgentState
 from core.shared_context import shared_context
 
+
 class ArchitectingAgent(BaseAgent):
     def _default_system_prompt(self) -> str:
         return """You are a senior software architect with expertise in designing scalable, maintainable systems. Your role is to:
@@ -48,71 +49,81 @@ You provide architectural guidance, not implementation details."""
 
     async def process(self, state: AgentState) -> AgentState:
         if not state.current_task:
-            return self.add_message(state, "assistant", "No architecture task specified")
-        
+            return self.add_message(
+                state, "assistant", "No architecture task specified"
+            )
+
         task = state.current_task
-        
+
         try:
             if task.startswith("design:"):
-                result = await self._design_architecture(task.replace("design:", "").strip())
+                result = await self._design_architecture(
+                    task.replace("design:", "").strip()
+                )
             elif task.startswith("analyze:"):
-                result = await self._analyze_existing_architecture(task.replace("analyze:", "").strip())
+                result = await self._analyze_existing_architecture(
+                    task.replace("analyze:", "").strip()
+                )
             elif task.startswith("improve:"):
-                result = await self._improve_architecture(task.replace("improve:", "").strip())
+                result = await self._improve_architecture(
+                    task.replace("improve:", "").strip()
+                )
             elif task.startswith("migrate:"):
-                result = await self._design_migration(task.replace("migrate:", "").strip())
+                result = await self._design_migration(
+                    task.replace("migrate:", "").strip()
+                )
             elif task.startswith("pattern:"):
-                result = await self._recommend_patterns(task.replace("pattern:", "").strip())
+                result = await self._recommend_patterns(
+                    task.replace("pattern:", "").strip()
+                )
             else:
                 result = await self._architectural_analysis(task)
-            
+
             return self.add_message(
                 state,
                 "assistant",
                 result,
-                metadata={"operation_type": "architecture", "scope": "system_design"}
+                metadata={"operation_type": "architecture", "scope": "system_design"},
             )
-        
+
         except Exception as e:
             return self.add_message(
-                state,
-                "assistant",
-                f"Architecture analysis failed: {str(e)}"
+                state, "assistant", f"Architecture analysis failed: {str(e)}"
             )
-    
+
     async def _design_architecture(self, requirements: str) -> str:
         """Design new system architecture based on requirements"""
         results = []
         results.append("# 🏗️ System Architecture Design")
         results.append(f"**Requirements**: {requirements}")
-        
+
         # 1. Requirements analysis
         analysis = await self._analyze_requirements(requirements)
         results.append("## 📋 Requirements Analysis")
         results.append(analysis)
-        
+
         # 2. System context analysis
         context = await self._analyze_system_context()
         results.append("## 🌐 System Context")
         results.append(context)
-        
+
         # 3. Design alternatives
         alternatives = await self._design_alternatives(requirements, analysis)
         results.append("## 🎯 Design Alternatives")
         results.append(alternatives)
-        
+
         # 4. Recommended architecture
         recommendation = await self._recommend_architecture(requirements, alternatives)
         results.append("## ⭐ Recommended Architecture")
         results.append(recommendation)
-        
+
         # 5. Implementation roadmap
         roadmap = await self._create_implementation_roadmap(recommendation)
         results.append("## 🗺️ Implementation Roadmap")
         results.append(roadmap)
-        
+
         return "\n\n".join(results)
-    
+
     async def _analyze_requirements(self, requirements: str) -> str:
         """Analyze and categorize requirements"""
         prompt = f"""Analyze these requirements: "{requirements}"
@@ -140,21 +151,25 @@ Categorize and elaborate on:
 - Regulatory compliance needs
 
 Provide specific, measurable requirements where possible."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _analyze_system_context(self) -> str:
         """Analyze the current system context and environment"""
         try:
             # Get project structure
-            structure = await self.execute_command("find . -type f -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.java' -o -name '*.go' | head -20")
-            
+            structure = await self.execute_command(
+                "find . -type f -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.java' -o -name '*.go' | head -20"
+            )
+
             # Check for existing architecture indicators
-            config_files = await self.execute_command("find . -name '*.json' -o -name '*.yaml' -o -name '*.toml' -o -name 'Dockerfile' -o -name 'docker-compose.*' | head -10")
-            
+            config_files = await self.execute_command(
+                "find . -name '*.json' -o -name '*.yaml' -o -name '*.toml' -o -name 'Dockerfile' -o -name 'docker-compose.*' | head -10"
+            )
+
             # Analyze dependencies
             deps_info = await self._analyze_dependencies()
-            
+
             return f"""**Current Project Structure:**
 ```
 {structure}
@@ -173,25 +188,33 @@ Provide specific, measurable requirements where possible."""
 - Current patterns should be considered for consistency
 - Integration points are already established
 - Deployment and configuration patterns are in place"""
-            
+
         except Exception as e:
             return f"System context analysis limited: {e}"
-    
+
     async def _analyze_dependencies(self) -> str:
         """Analyze project dependencies and technology stack"""
         try:
             # Python dependencies
-            python_deps = await self.execute_command("find . -name 'requirements*.txt' -o -name 'pyproject.toml' -o -name 'Pipfile' | head -5")
-            
-            # JavaScript dependencies  
-            js_deps = await self.execute_command("find . -name 'package.json' -o -name 'yarn.lock' -o -name 'package-lock.json' | head -5")
-            
+            python_deps = await self.execute_command(
+                "find . -name 'requirements*.txt' -o -name 'pyproject.toml' -o -name 'Pipfile' | head -5"
+            )
+
+            # JavaScript dependencies
+            js_deps = await self.execute_command(
+                "find . -name 'package.json' -o -name 'yarn.lock' -o -name 'package-lock.json' | head -5"
+            )
+
             # Java dependencies
-            java_deps = await self.execute_command("find . -name 'pom.xml' -o -name 'build.gradle' | head -5")
-            
+            java_deps = await self.execute_command(
+                "find . -name 'pom.xml' -o -name 'build.gradle' | head -5"
+            )
+
             # Other build files
-            other_deps = await self.execute_command("find . -name 'go.mod' -o -name 'Cargo.toml' -o -name 'composer.json' | head -5")
-            
+            other_deps = await self.execute_command(
+                "find . -name 'go.mod' -o -name 'Cargo.toml' -o -name 'composer.json' | head -5"
+            )
+
             deps_summary = []
             if python_deps.strip():
                 deps_summary.append(f"Python: {python_deps}")
@@ -201,12 +224,16 @@ Provide specific, measurable requirements where possible."""
                 deps_summary.append(f"Java: {java_deps}")
             if other_deps.strip():
                 deps_summary.append(f"Other: {other_deps}")
-            
-            return "\n".join(deps_summary) if deps_summary else "No dependency files detected"
-            
+
+            return (
+                "\n".join(deps_summary)
+                if deps_summary
+                else "No dependency files detected"
+            )
+
         except Exception as e:
             return f"Dependency analysis limited: {e}"
-    
+
     async def _design_alternatives(self, requirements: str, analysis: str) -> str:
         """Design multiple architectural alternatives"""
         prompt = f"""Based on requirements: "{requirements}"
@@ -239,10 +266,12 @@ Design 3 different architectural approaches:
 - Technology recommendations
 
 For each alternative, consider scalability, maintainability, complexity, and team fit."""
-        
+
         return await self.generate_response(prompt)
-    
-    async def _recommend_architecture(self, requirements: str, alternatives: str) -> str:
+
+    async def _recommend_architecture(
+        self, requirements: str, alternatives: str
+    ) -> str:
         """Recommend the best architecture based on analysis"""
         prompt = f"""Given requirements: "{requirements}"
 And alternatives: "{alternatives}"
@@ -272,9 +301,9 @@ Provide a detailed recommendation:
 - Identified architectural risks
 - Mitigation strategies
 - Contingency plans"""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _create_implementation_roadmap(self, architecture: str) -> str:
         """Create implementation roadmap for the architecture"""
         prompt = f"""Based on the recommended architecture: "{architecture}"
@@ -321,48 +350,56 @@ Create a practical implementation roadmap:
 - Measurable milestones for each phase
 - Quality gates and reviews
 - Performance benchmarks"""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _analyze_existing_architecture(self, focus_area: str) -> str:
         """Analyze existing system architecture"""
         results = []
         results.append("# 🔍 Architecture Analysis")
         results.append(f"**Focus Area**: {focus_area}")
-        
+
         # System overview
         overview = await self._get_system_overview()
         results.append("## 🏗️ System Overview")
         results.append(overview)
-        
+
         # Architecture patterns
         patterns = await self._identify_architecture_patterns()
         results.append("## 🔄 Architecture Patterns")
         results.append(patterns)
-        
+
         # Quality assessment
         quality = await self._assess_architecture_quality()
         results.append("## ⚡ Quality Assessment")
         results.append(quality)
-        
+
         # Recommendations
         recommendations = await self._architecture_recommendations(focus_area)
         results.append("## 💡 Recommendations")
         results.append(recommendations)
-        
+
         return "\n\n".join(results)
-    
+
     async def _get_system_overview(self) -> str:
         """Get high-level system overview"""
         try:
             # Count different types of files
-            file_counts = await self.execute_command("find . -type f | grep -E '\\.(py|js|ts|java|go|rs)$' | sed 's/.*\\.//' | sort | uniq -c")
-            
+            file_counts = await self.execute_command(
+                "find . -type f | grep -E '\\.(py|js|ts|java|go|rs)$' | sed 's/.*\\.//' | sort | uniq -c"
+            )
+
             # Check for architecture indicators
-            services = await self.execute_command("find . -name 'service*' -o -name '*Service*' | wc -l")
-            controllers = await self.execute_command("find . -name '*controller*' -o -name '*Controller*' | wc -l")
-            models = await self.execute_command("find . -name '*model*' -o -name '*Model*' | wc -l")
-            
+            services = await self.execute_command(
+                "find . -name 'service*' -o -name '*Service*' | wc -l"
+            )
+            controllers = await self.execute_command(
+                "find . -name '*controller*' -o -name '*Controller*' | wc -l"
+            )
+            models = await self.execute_command(
+                "find . -name '*model*' -o -name '*Model*' | wc -l"
+            )
+
             return f"""**File Distribution:**
 ```
 {file_counts}
@@ -374,10 +411,10 @@ Create a practical implementation roadmap:
 - Models/Entities: {models.strip()} files
 
 **System Complexity**: Based on file distribution and organization patterns"""
-            
+
         except Exception as e:
             return f"System overview limited: {e}"
-    
+
     async def _identify_architecture_patterns(self) -> str:
         """Identify architectural patterns in use"""
         prompt = """Analyze the current codebase to identify architectural patterns:
@@ -401,9 +438,9 @@ Create a practical implementation roadmap:
 - Repository patterns
 
 Examine the code structure and identify which patterns are being used and how well they're implemented."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _assess_architecture_quality(self) -> str:
         """Assess the quality of current architecture"""
         prompt = """Assess the architecture quality across these dimensions:
@@ -439,9 +476,9 @@ Examine the code structure and identify which patterns are being used and how we
 - Business logic adaptability
 
 Provide specific observations and metrics where possible."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _architecture_recommendations(self, focus_area: str) -> str:
         """Provide architecture improvement recommendations"""
         prompt = f"""Based on the architecture analysis, with focus on: "{focus_area}"
@@ -470,32 +507,34 @@ Provide specific, actionable recommendations:
 - Resource requirements and timeline estimates
 
 Focus recommendations on practical, implementable changes."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _improve_architecture(self, improvement_area: str) -> str:
         """Design architecture improvements"""
         results = []
         results.append("# 🚀 Architecture Improvement")
         results.append(f"**Improvement Area**: {improvement_area}")
-        
+
         # Current state analysis
         current_state = await self._analyze_current_state(improvement_area)
         results.append("## 📊 Current State")
         results.append(current_state)
-        
+
         # Improvement design
         improvements = await self._design_improvements(improvement_area, current_state)
         results.append("## ✨ Improvement Design")
         results.append(improvements)
-        
+
         # Migration strategy
-        migration = await self._design_migration_strategy(improvement_area, improvements)
+        migration = await self._design_migration_strategy(
+            improvement_area, improvements
+        )
         results.append("## 🔄 Migration Strategy")
         results.append(migration)
-        
+
         return "\n\n".join(results)
-    
+
     async def _analyze_current_state(self, area: str) -> str:
         """Analyze current state for specific improvement area"""
         prompt = f"""Analyze the current state for improvement area: "{area}"
@@ -520,9 +559,9 @@ Focus recommendations on practical, implementable changes."""
 - Business constraints and requirements
 
 Provide a clear baseline for improvement planning."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _design_improvements(self, area: str, current_state: str) -> str:
         """Design specific improvements"""
         prompt = f"""Design improvements for: "{area}"
@@ -549,9 +588,9 @@ Current state: "{current_state}"
 - Rollback plans if needed
 
 Design practical, implementable improvements."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _design_migration_strategy(self, area: str, improvements: str) -> str:
         """Design migration strategy for improvements"""
         prompt = f"""Design migration strategy for: "{area}"
@@ -583,27 +622,29 @@ Improvements: "{improvements}"
 - Timeline and milestone updates
 
 Make the migration as safe and smooth as possible."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _design_migration(self, migration_request: str) -> str:
         """Design system migration architecture"""
         results = []
         results.append("# 🔄 System Migration Design")
         results.append(f"**Migration Request**: {migration_request}")
-        
+
         # Migration analysis
         analysis = await self._analyze_migration_requirements(migration_request)
         results.append("## 📋 Migration Analysis")
         results.append(analysis)
-        
+
         # Migration architecture
-        architecture = await self._design_migration_architecture(migration_request, analysis)
+        architecture = await self._design_migration_architecture(
+            migration_request, analysis
+        )
         results.append("## 🏗️ Migration Architecture")
         results.append(architecture)
-        
+
         return "\n\n".join(results)
-    
+
     async def _analyze_migration_requirements(self, request: str) -> str:
         """Analyze migration requirements and constraints"""
         prompt = f"""Analyze migration requirements: "{request}"
@@ -633,9 +674,9 @@ Make the migration as safe and smooth as possible."""
 - Business continuity risks
 
 Provide comprehensive migration requirement analysis."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _design_migration_architecture(self, request: str, analysis: str) -> str:
         """Design the migration architecture and process"""
         prompt = f"""Design migration architecture for: "{request}"
@@ -660,9 +701,9 @@ Based on analysis: "{analysis}"
 - Performance optimization strategies
 
 Design a robust, safe migration approach."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _recommend_patterns(self, pattern_request: str) -> str:
         """Recommend architectural patterns for specific needs"""
         prompt = f"""Recommend architectural patterns for: "{pattern_request}"
@@ -686,9 +727,9 @@ Design a robust, safe migration approach."""
 - Maintenance implications
 
 Provide practical, implementable pattern recommendations."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _architectural_analysis(self, task: str) -> str:
         """General architectural analysis for unspecified tasks"""
         prompt = f"""Provide architectural analysis for: "{task}"
@@ -706,5 +747,5 @@ Provide practical, implementable pattern recommendations."""
 - Risk assessment and mitigation
 
 Provide comprehensive architectural insight for this request."""
-        
+
         return await self.generate_response(prompt)

@@ -33,8 +33,8 @@ A sophisticated multi-agent coding assistant powered by LangGraph and Ollama, de
 
 1. **Clone the repository**:
 ```bash
-git clone <repository-url>
-cd langgraph-ollama-agent
+git clone git@github.com:adam-hanna/ollama-agentic-coder.git
+cd ollama-agentic-coder
 ```
 
 2. **Create a virtual environment**:
@@ -45,7 +45,7 @@ source ./.venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 3. **Install dependencies**:
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-dev.txt
 ```
 
 4. **Install Ollama** (if not already installed):
@@ -59,9 +59,11 @@ curl -fsSL https://ollama.ai/install.sh | sh
 # Windows - Download from https://ollama.ai/download
 ```
 
-5. **Pull the coding model**:
+5. **Pull the models**:
 ```bash
 ollama pull qwen2.5-coder:32b
+ollama pull qwen2.5:32b
+ollama pull llama3.1:8b
 ```
 
 ## ⚙️ Configuration
@@ -102,6 +104,13 @@ export COMMAND_SAFETY_MODE="safe"  # or "whitelist" or "yolo"
 ## 🚀 Usage
 
 ### Basic Usage
+
+1. **Run ollama**:
+```bash
+ollama serve
+```
+
+2. **Run the application**:
 ```bash
 python main.py
 ```

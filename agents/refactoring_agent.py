@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from core.base_agent import BaseAgent, AgentState
 
+
 class RefactoringAgent(BaseAgent):
     def _default_system_prompt(self) -> str:
         return """You are a code refactoring specialist with expertise in improving code quality, performance, and maintainability. Your role is to:
@@ -40,63 +41,58 @@ Types of refactoring you can perform:
     async def process(self, state: AgentState) -> AgentState:
         if not state.current_task:
             return self.add_message(state, "assistant", "No refactoring task specified")
-        
+
         task = state.current_task
-        
+
         try:
             if task.startswith("analyze_refactoring:"):
                 file_path = task.replace("analyze_refactoring:", "").strip()
                 result = await self._analyze_refactoring_opportunities(file_path)
-            
+
             elif task.startswith("extract_method:"):
                 spec = task.replace("extract_method:", "").strip()
                 result = await self._extract_method(spec)
-            
+
             elif task.startswith("remove_duplication:"):
                 path = task.replace("remove_duplication:", "").strip()
                 result = await self._remove_duplication(path)
-            
+
             elif task.startswith("optimize_performance:"):
                 file_path = task.replace("optimize_performance:", "").strip()
                 result = await self._optimize_performance(file_path)
-            
+
             elif task.startswith("modernize_code:"):
                 file_path = task.replace("modernize_code:", "").strip()
                 result = await self._modernize_code(file_path)
-            
+
             elif task.startswith("apply_design_pattern:"):
                 spec = task.replace("apply_design_pattern:", "").strip()
                 result = await self._apply_design_pattern(spec)
-            
+
             else:
                 result = await self._intelligent_refactoring(task)
-            
+
             return self.add_message(
-                state,
-                "assistant",
-                result,
-                metadata={"refactoring": True}
+                state, "assistant", result, metadata={"refactoring": True}
             )
-        
+
         except Exception as e:
             return self.add_message(
-                state,
-                "assistant",
-                f"Refactoring analysis failed: {str(e)}"
+                state, "assistant", f"Refactoring analysis failed: {str(e)}"
             )
-    
+
     async def _analyze_refactoring_opportunities(self, file_path: str) -> str:
         """Analyze code and identify refactoring opportunities"""
         if not os.path.exists(file_path):
             return f"File not found: {file_path}"
-        
+
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 code_content = f.read()
-            
+
             # Perform static analysis
             analysis = self._perform_static_analysis(code_content, file_path)
-            
+
             prompt = f"""Analyze this code for refactoring opportunities:
 
 File: {file_path}
@@ -140,12 +136,12 @@ Provide a comprehensive refactoring analysis including:
    - Impact assessment
 
 Rank issues by importance and provide concrete code examples."""
-            
+
             return await self.generate_response(prompt)
-        
+
         except Exception as e:
             return f"Failed to analyze refactoring opportunities: {str(e)}"
-    
+
     async def _extract_method(self, specification: str) -> str:
         """Extract methods from complex functions"""
         prompt = f"""Help extract methods from complex code:
@@ -166,38 +162,40 @@ Include:
 - Updated main method calling extracted methods
 - Any necessary parameter passing
 - Documentation for new methods"""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _remove_duplication(self, path: str) -> str:
         """Find and eliminate code duplication"""
         if not os.path.exists(path):
             return f"Path not found: {path}"
-        
+
         duplication_analysis = []
-        
+
         if os.path.isdir(path):
             # Analyze multiple files for duplication
             files_content = {}
             for root, dirs, files in os.walk(path):
                 for file in files:
-                    if file.endswith(('.py', '.js', '.ts', '.java', '.cpp')):
+                    if file.endswith((".py", ".js", ".ts", ".java", ".cpp")):
                         file_path = os.path.join(root, file)
                         try:
-                            with open(file_path, 'r', encoding='utf-8') as f:
+                            with open(file_path, "r", encoding="utf-8") as f:
                                 files_content[file_path] = f.read()
                         except Exception:
                             continue
-            
-            analysis_text = f"Analyzing {len(files_content)} files for duplication patterns"
-        
+
+            analysis_text = (
+                f"Analyzing {len(files_content)} files for duplication patterns"
+            )
+
         else:
             # Single file analysis
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
             files_content = {path: content}
             analysis_text = f"Analyzing single file: {path}"
-        
+
         prompt = f"""Find and eliminate code duplication:
 
 {analysis_text}
@@ -227,21 +225,21 @@ Identify and provide solutions for:
    - Testing considerations
 
 Provide concrete code examples for the refactored solution."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _optimize_performance(self, file_path: str) -> str:
         """Analyze and suggest performance optimizations"""
         if not os.path.exists(file_path):
             return f"File not found: {file_path}"
-        
+
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 code_content = f.read()
-            
+
             # Perform performance analysis
             perf_issues = self._analyze_performance_issues(code_content)
-            
+
             prompt = f"""Analyze and optimize performance for this code:
 
 File: {file_path}
@@ -281,21 +279,21 @@ Provide performance optimization recommendations:
    - Thread safety considerations
 
 Include before/after performance comparisons and estimated improvements."""
-            
+
             return await self.generate_response(prompt)
-        
+
         except Exception as e:
             return f"Failed to analyze performance: {str(e)}"
-    
+
     async def _modernize_code(self, file_path: str) -> str:
         """Modernize legacy code with current best practices"""
         if not os.path.exists(file_path):
             return f"File not found: {file_path}"
-        
+
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 code_content = f.read()
-            
+
             prompt = f"""Modernize this legacy code:
 
 File: {file_path}
@@ -337,12 +335,12 @@ Provide modernization recommendations:
    - Code annotation standards
 
 Show complete modernized code with explanations for each change."""
-            
+
             return await self.generate_response(prompt)
-        
+
         except Exception as e:
             return f"Failed to modernize code: {str(e)}"
-    
+
     async def _apply_design_pattern(self, specification: str) -> str:
         """Apply appropriate design patterns to improve code structure"""
         prompt = f"""Apply design patterns to improve code structure:
@@ -372,9 +370,9 @@ Analyze the code/requirements and recommend:
    - Maintainability considerations
 
 Provide complete, working code examples with clear explanations."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _intelligent_refactoring(self, task: str) -> str:
         """Handle complex refactoring requests using AI"""
         prompt = f"""Analyze this refactoring request:
@@ -392,80 +390,100 @@ Provide comprehensive refactoring guidance:
 8. Expected benefits and improvements
 
 Focus on practical, actionable recommendations with code examples."""
-        
+
         return await self.generate_response(prompt)
-    
+
     def _perform_static_analysis(self, code: str, file_path: str) -> str:
         """Perform static analysis to identify refactoring opportunities"""
         issues = []
         language = self._detect_language(file_path)
-        
+
         if language == "python":
             try:
                 tree = ast.parse(code)
-                
+
                 for node in ast.walk(tree):
                     if isinstance(node, ast.FunctionDef):
                         # Check function length
-                        func_lines = len([n for n in ast.walk(node) if isinstance(n, ast.stmt)])
+                        func_lines = len(
+                            [n for n in ast.walk(node) if isinstance(n, ast.stmt)]
+                        )
                         if func_lines > 20:
-                            issues.append(f"Function '{node.name}' is long ({func_lines} statements) - consider extracting methods")
-                        
+                            issues.append(
+                                f"Function '{node.name}' is long ({func_lines} statements) - consider extracting methods"
+                            )
+
                         # Check parameter count
                         if len(node.args.args) > 5:
-                            issues.append(f"Function '{node.name}' has many parameters ({len(node.args.args)}) - consider parameter object")
-                    
+                            issues.append(
+                                f"Function '{node.name}' has many parameters ({len(node.args.args)}) - consider parameter object"
+                            )
+
                     elif isinstance(node, ast.ClassDef):
                         # Check class size
-                        methods = [n for n in node.body if isinstance(n, ast.FunctionDef)]
+                        methods = [
+                            n for n in node.body if isinstance(n, ast.FunctionDef)
+                        ]
                         if len(methods) > 15:
-                            issues.append(f"Class '{node.name}' has many methods ({len(methods)}) - consider splitting")
-            
+                            issues.append(
+                                f"Class '{node.name}' has many methods ({len(methods)}) - consider splitting"
+                            )
+
             except SyntaxError:
                 issues.append("Syntax error in code - fix syntax before refactoring")
-        
+
         # General code analysis
-        lines = code.split('\n')
-        long_lines = [i+1 for i, line in enumerate(lines) if len(line) > 100]
+        lines = code.split("\n")
+        long_lines = [i + 1 for i, line in enumerate(lines) if len(line) > 100]
         if long_lines:
-            issues.append(f"Long lines found: {long_lines[:5]}{'...' if len(long_lines) > 5 else ''}")
-        
-        return "\n".join(issues) if issues else "No obvious static analysis issues found"
-    
+            issues.append(
+                f"Long lines found: {long_lines[:5]}{'...' if len(long_lines) > 5 else ''}"
+            )
+
+        return (
+            "\n".join(issues) if issues else "No obvious static analysis issues found"
+        )
+
     def _analyze_performance_issues(self, code: str) -> str:
         """Analyze potential performance issues"""
         issues = []
-        lines = code.split('\n')
-        
+        lines = code.split("\n")
+
         # Look for common performance anti-patterns
         for i, line in enumerate(lines, 1):
             line_lower = line.lower().strip()
-            
+
             # Nested loops
-            if 'for' in line_lower and any('for' in l.lower() for l in lines[i:i+10]):
-                issues.append(f"Line {i}: Potential nested loops - consider optimization")
-            
+            if "for" in line_lower and any(
+                "for" in l.lower() for l in lines[i : i + 10]
+            ):
+                issues.append(
+                    f"Line {i}: Potential nested loops - consider optimization"
+                )
+
             # String concatenation in loops
-            if '+=' in line and 'str' in line_lower:
-                issues.append(f"Line {i}: String concatenation in loop - use join() or list")
-            
+            if "+=" in line and "str" in line_lower:
+                issues.append(
+                    f"Line {i}: String concatenation in loop - use join() or list"
+                )
+
             # Unnecessary computations
-            if line_lower.count('.') > 3:
+            if line_lower.count(".") > 3:
                 issues.append(f"Line {i}: Multiple attribute access - consider caching")
-        
+
         return "\n".join(issues) if issues else "No obvious performance issues detected"
-    
+
     def _detect_language(self, file_path: str) -> str:
         """Detect programming language from file extension"""
         ext = Path(file_path).suffix.lower()
         lang_map = {
-            '.py': 'python',
-            '.js': 'javascript',
-            '.ts': 'typescript',
-            '.java': 'java',
-            '.cpp': 'cpp',
-            '.c': 'c',
-            '.go': 'go',
-            '.rs': 'rust'
+            ".py": "python",
+            ".js": "javascript",
+            ".ts": "typescript",
+            ".java": "java",
+            ".cpp": "cpp",
+            ".c": "c",
+            ".go": "go",
+            ".rs": "rust",
         }
-        return lang_map.get(ext, 'unknown')
+        return lang_map.get(ext, "unknown")

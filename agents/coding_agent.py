@@ -2,6 +2,7 @@ from typing import Dict, Any, List, Optional
 from core.base_agent import BaseAgent, AgentState
 from core.shared_context import shared_context
 
+
 class CodingAgent(BaseAgent):
     def _default_system_prompt(self) -> str:
         return """You are an expert software engineer specializing in implementing code solutions. Your role is to:
@@ -46,49 +47,60 @@ You implement solutions, you don't just provide suggestions."""
     async def process(self, state: AgentState) -> AgentState:
         if not state.current_task:
             return self.add_message(state, "assistant", "No coding task specified")
-        
+
         task = state.current_task
-        
+
         try:
             if task.startswith("implement:"):
-                result = await self._implement_feature(task.replace("implement:", "").strip())
+                result = await self._implement_feature(
+                    task.replace("implement:", "").strip()
+                )
             elif task.startswith("refactor:"):
-                result = await self._refactor_code(task.replace("refactor:", "").strip())
+                result = await self._refactor_code(
+                    task.replace("refactor:", "").strip()
+                )
             elif task.startswith("fix:"):
                 result = await self._fix_bug(task.replace("fix:", "").strip())
             elif task.startswith("create:"):
-                result = await self._create_new_code(task.replace("create:", "").strip())
+                result = await self._create_new_code(
+                    task.replace("create:", "").strip()
+                )
             elif task.startswith("optimize:"):
-                result = await self._optimize_code(task.replace("optimize:", "").strip())
+                result = await self._optimize_code(
+                    task.replace("optimize:", "").strip()
+                )
             else:
                 result = await self._analyze_and_implement(task)
-            
-            return self.add_message(
-                state,
-                "assistant", 
-                result,
-                metadata={"operation_type": "coding", "language": await self._detect_project_language()}
-            )
-        
-        except Exception as e:
+
             return self.add_message(
                 state,
                 "assistant",
-                f"Coding operation failed: {str(e)}"
+                result,
+                metadata={
+                    "operation_type": "coding",
+                    "language": await self._detect_project_language(),
+                },
             )
-    
+
+        except Exception as e:
+            return self.add_message(
+                state, "assistant", f"Coding operation failed: {str(e)}"
+            )
+
     async def _detect_project_language(self) -> str:
         """Detect the primary programming language of the project"""
         try:
             # Check common files to detect language
-            file_check = await self.execute_command("find . -maxdepth 2 -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.java' -o -name '*.go' -o -name '*.rs' | head -10")
-            
+            file_check = await self.execute_command(
+                "find . -maxdepth 2 -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.java' -o -name '*.go' -o -name '*.rs' | head -10"
+            )
+
             if ".py" in file_check:
                 return "python"
             elif ".ts" in file_check:
                 return "typescript"
             elif ".js" in file_check:
-                return "javascript" 
+                return "javascript"
             elif ".java" in file_check:
                 return "java"
             elif ".go" in file_check:
@@ -99,83 +111,91 @@ You implement solutions, you don't just provide suggestions."""
                 return "unknown"
         except:
             return "unknown"
-    
+
     async def _implement_feature(self, specification: str) -> str:
         """Implement a new feature based on specification"""
         results = []
         results.append("# 🔧 Feature Implementation")
         results.append(f"**Specification**: {specification}")
-        
+
         # 1. Analyze project structure
         project_analysis = await self._analyze_project_structure()
         results.append("## 📁 Project Analysis")
         results.append(project_analysis)
-        
+
         # 2. Design the implementation approach
         design = await self._design_implementation(specification)
         results.append("## 🎯 Implementation Design")
         results.append(design)
-        
+
         # 3. Implement the actual code
         implementation = await self._write_implementation_code(specification, design)
         results.append("## 💻 Code Implementation")
         results.append(implementation)
-        
+
         # 4. Create basic tests
         testing = await self._create_implementation_tests(specification)
         results.append("## 🧪 Testing")
         results.append(testing)
-        
+
         return "\n\n".join(results)
-    
+
     async def _analyze_project_structure(self) -> str:
         """Analyze the current project structure"""
         try:
             # Get directory structure
-            structure = await self.execute_command("find . -type f -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.java' -o -name '*.go' -o -name '*.rs' | head -20")
-            
+            structure = await self.execute_command(
+                "find . -type f -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.java' -o -name '*.go' -o -name '*.rs' | head -20"
+            )
+
             # Get language-specific info
             language = await self._detect_project_language()
-            
+
             # Check for existing patterns
             patterns_info = await self._analyze_code_patterns()
-            
+
             return f"""**Primary Language**: {language}
 **Project Structure**:
 ```
 {structure}
 ```
 **Detected Patterns**: {patterns_info}"""
-        
+
         except Exception as e:
             return f"Could not analyze project structure: {e}"
-    
+
     async def _analyze_code_patterns(self) -> str:
         """Analyze existing code patterns to maintain consistency"""
         try:
             language = await self._detect_project_language()
-            
+
             if language == "python":
                 # Check for Python patterns
-                patterns = await self.execute_command("grep -r 'class \\|def \\|import ' . --include='*.py' | head -10")
+                patterns = await self.execute_command(
+                    "grep -r 'class \\|def \\|import ' . --include='*.py' | head -10"
+                )
                 return f"Python patterns detected: classes, functions, imports found"
-            
+
             elif language in ["javascript", "typescript"]:
                 # Check for JS/TS patterns
-                patterns = await self.execute_command("grep -r 'function\\|class\\|export\\|import' . --include='*.js' --include='*.ts' | head -10")
+                patterns = await self.execute_command(
+                    "grep -r 'function\\|class\\|export\\|import' . --include='*.js' --include='*.ts' | head -10"
+                )
                 return f"JS/TS patterns detected: functions, classes, modules found"
-            
+
             elif language == "java":
                 # Check for Java patterns
-                patterns = await self.execute_command("grep -r 'public class\\|public interface\\|package' . --include='*.java' | head -10")
+                patterns = await self.execute_command(
+                    "grep -r 'public class\\|public interface\\|package' . --include='*.java' | head -10"
+                )
                 return f"Java patterns detected: classes, interfaces, packages found"
-            
+
             else:
                 return f"Basic patterns for {language}"
-                
+
         except Exception as e:
             return f"Pattern analysis limited: {e}"
-    
+
     async def _design_implementation(self, specification: str) -> str:
         """Design the implementation approach"""
         prompt = f"""Based on this specification: "{specification}"
@@ -189,9 +209,9 @@ And the current project context, design an implementation approach that includes
 5. **Testing strategy** - How will this be tested?
 
 Provide a clear, actionable implementation plan."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _write_implementation_code(self, specification: str, design: str) -> str:
         """Write the actual implementation code"""
         prompt = f"""Now implement the actual code for:
@@ -208,26 +228,28 @@ Provide a clear, actionable implementation plan."""
 5. Make the code modular and testable
 
 **Output Format**: Provide the actual code files with their file paths and complete implementation."""
-        
+
         code_response = await self.generate_response(prompt)
-        
+
         # Extract code blocks and write files if possible
         return await self._process_code_response(code_response)
-    
+
     async def _process_code_response(self, code_response: str) -> str:
         """Process the code response and create actual files if appropriate"""
         results = [code_response]
-        
+
         # This would parse code blocks and use FileOperationsAgent to create files
         # For now, just return the code response with a note about file creation
-        results.append("\n📝 **Note**: Code provided above can be implemented using FileOperationsAgent coordination")
-        
+        results.append(
+            "\n📝 **Note**: Code provided above can be implemented using FileOperationsAgent coordination"
+        )
+
         return "\n".join(results)
-    
+
     async def _create_implementation_tests(self, specification: str) -> str:
         """Create basic tests for the implementation"""
         language = await self._detect_project_language()
-        
+
         prompt = f"""Create comprehensive tests for the implementation:
 
 **Specification**: {specification}
@@ -240,27 +262,27 @@ Generate appropriate test cases including:
 4. **Happy path tests** for normal usage
 
 Follow testing best practices for {language}."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _refactor_code(self, refactor_request: str) -> str:
         """Refactor existing code"""
         results = []
         results.append("# 🔄 Code Refactoring")
         results.append(f"**Request**: {refactor_request}")
-        
+
         # Analyze current code
         analysis = await self._analyze_code_for_refactoring(refactor_request)
         results.append("## 📊 Code Analysis")
         results.append(analysis)
-        
+
         # Propose refactoring
         refactoring = await self._propose_refactoring(refactor_request, analysis)
         results.append("## ✨ Refactoring Implementation")
         results.append(refactoring)
-        
+
         return "\n\n".join(results)
-    
+
     async def _analyze_code_for_refactoring(self, request: str) -> str:
         """Analyze code that needs refactoring"""
         prompt = f"""Analyze the current codebase for refactoring request: "{request}"
@@ -273,9 +295,9 @@ Examine the code structure, identify:
 5. **Benefits** of the proposed changes
 
 Provide specific analysis with code examples where possible."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _propose_refactoring(self, request: str, analysis: str) -> str:
         """Propose specific refactoring changes"""
         prompt = f"""Based on the refactoring request: "{request}"
@@ -290,27 +312,27 @@ Provide a detailed refactoring implementation:
 5. **Migration strategy** if data/API changes are involved
 
 Make the refactoring practical and actionable."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _fix_bug(self, bug_description: str) -> str:
         """Fix a reported bug"""
         results = []
         results.append("# 🐛 Bug Fix")
         results.append(f"**Bug Description**: {bug_description}")
-        
+
         # Investigate the bug
         investigation = await self._investigate_bug(bug_description)
         results.append("## 🔍 Investigation")
         results.append(investigation)
-        
+
         # Implement fix
         fix = await self._implement_bug_fix(bug_description, investigation)
         results.append("## 🔧 Fix Implementation")
         results.append(fix)
-        
+
         return "\n\n".join(results)
-    
+
     async def _investigate_bug(self, bug_description: str) -> str:
         """Investigate the bug to understand root cause"""
         prompt = f"""Investigate this bug: "{bug_description}"
@@ -323,9 +345,9 @@ Steps to analyze:
 5. **Propose solution approach** - how to fix it properly
 
 Use available tools to examine relevant code files and understand the bug's context."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _implement_bug_fix(self, bug_description: str, investigation: str) -> str:
         """Implement the actual bug fix"""
         prompt = f"""Implement a fix for: "{bug_description}"
@@ -340,31 +362,31 @@ Provide:
 5. **Side effects** to watch out for
 
 Make the fix minimal, targeted, and robust."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _create_new_code(self, creation_request: str) -> str:
         """Create new code from scratch"""
         results = []
         results.append("# ✨ New Code Creation")
         results.append(f"**Request**: {creation_request}")
-        
+
         # Plan the creation
         planning = await self._plan_new_code(creation_request)
         results.append("## 📋 Planning")
         results.append(planning)
-        
+
         # Create the code
         creation = await self._execute_code_creation(creation_request, planning)
         results.append("## 💻 Implementation")
         results.append(creation)
-        
+
         return "\n\n".join(results)
-    
+
     async def _plan_new_code(self, request: str) -> str:
         """Plan new code creation"""
         language = await self._detect_project_language()
-        
+
         prompt = f"""Plan the creation of new code: "{request}"
 
 For language: {language}
@@ -378,9 +400,9 @@ Planning considerations:
 6. **Testing approach** - How to validate it works
 
 Provide a comprehensive plan before implementation."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _execute_code_creation(self, request: str, planning: str) -> str:
         """Execute the actual code creation"""
         prompt = f"""Create new code for: "{request}"
@@ -396,27 +418,29 @@ Requirements:
 6. **Testability** - designed for easy testing
 
 Output the complete code with file organization."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _optimize_code(self, optimization_request: str) -> str:
         """Optimize existing code for performance or other metrics"""
         results = []
         results.append("# ⚡ Code Optimization")
         results.append(f"**Optimization Request**: {optimization_request}")
-        
+
         # Analyze current performance
         analysis = await self._analyze_performance(optimization_request)
         results.append("## 📊 Performance Analysis")
         results.append(analysis)
-        
+
         # Implement optimizations
-        optimization = await self._implement_optimizations(optimization_request, analysis)
+        optimization = await self._implement_optimizations(
+            optimization_request, analysis
+        )
         results.append("## 🚀 Optimization Implementation")
         results.append(optimization)
-        
+
         return "\n\n".join(results)
-    
+
     async def _analyze_performance(self, request: str) -> str:
         """Analyze current code performance"""
         prompt = f"""Analyze performance for: "{request}"
@@ -429,9 +453,9 @@ Performance analysis should cover:
 5. **Profiling data** - if available, or suggest profiling approach
 
 Identify specific optimization opportunities."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _implement_optimizations(self, request: str, analysis: str) -> str:
         """Implement performance optimizations"""
         prompt = f"""Implement optimizations for: "{request}"
@@ -446,9 +470,9 @@ Optimization implementation:
 5. **Performance validation** - how to measure improvement
 
 Ensure optimizations maintain correctness and readability."""
-        
+
         return await self.generate_response(prompt)
-    
+
     async def _analyze_and_implement(self, task: str) -> str:
         """Analyze task and implement appropriate solution"""
         analysis_prompt = f"""Analyze this coding task: "{task}"
@@ -461,5 +485,5 @@ Determine:
 5. **Deliverables** - What should be the final output?
 
 Then proceed with implementation following the determined approach."""
-        
+
         return await self.generate_response(analysis_prompt)
