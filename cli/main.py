@@ -8,6 +8,8 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.prompt import Prompt
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.live import Live
+from rich.layout import Layout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -19,6 +21,9 @@ from agents import (SupervisorAgent, WebSearchAgent, CodeReviewAgent, CodeAnalyz
                    FileOperationsAgent, TestGeneratorAgent, RefactoringAgent, 
                    GitAgent, DocumentationAgent, CommandLineAgent, ContextManagerAgent)
 from utils.file_watcher import BackgroundIndexer
+from cli.status_bar import StatusBar, progress_tracker
+from core.shared_context import shared_context
+from datetime import datetime
 
 class AgentCLI:
     def __init__(self, config: Optional[Config] = None):
@@ -27,6 +32,10 @@ class AgentCLI:
         self.supervisor = None
         self.current_state = AgentState()
         self.background_indexer = None
+        self.status_bar = StatusBar(self.console)
+        
+        # Initialize session tracking
+        shared_context.set("session_start", datetime.now())
     
     async def start(self):
         self.console.print(Panel(
@@ -61,15 +70,23 @@ class AgentCLI:
         self.console.print("  /index    - Manually index a directory (or toggle auto-indexing)")
         self.console.print("  /config   - Show current configuration")
         self.console.print("  /agents   - List available agents")  
+        self.console.print("  /status   - Toggle status bar display")
         self.console.print("  /clear    - Clear conversation history")
         self.console.print("  /exit     - Exit the application")
         self.console.print()
+        
+        # Start status bar
+        self.status_bar.start()
         
         await self._chat_loop()
     
     async def _chat_loop(self):
         while True:
             try:
+                # Display status bar before prompt
+                if self.status_bar.is_active:
+                    self.console.print(self.status_bar.create_status_display())
+                
                 user_input = Prompt.ask("[bold cyan]You[/bold cyan]").strip()
                 
                 if not user_input:
@@ -81,34 +98,79 @@ class AgentCLI:
                 
                 self.current_state.current_task = user_input
                 
+                # Create a progress callback for the supervisor
+                async def progress_callback(status: str, agent_name: str = ""):
+                    if agent_name:
+                        self.console.print(f"[yellow]🔄 {agent_name.title()}: {status}[/yellow]")
+                    else:
+                        self.console.print(f"[blue]📋 Supervisor: {status}[/blue]")
+                
+                self.current_state.context["progress_callback"] = progress_callback
+                
                 with Progress(
                     SpinnerColumn(),
                     TextColumn("[progress.description]{task.description}"),
                     console=self.console
                 ) as progress:
-                    task = progress.add_task("Processing request...", total=None)
+                    task = progress.add_task("Analyzing request...", total=None)
                     
-                    async with self.supervisor:
-                        result_state = await self.supervisor.process(self.current_state)
+                    try:
+                        async with self.supervisor:
+                            result_state = await self.supervisor.process(self.current_state)
+                    except Exception as e:
+                        import traceback
+                        error_details = traceback.format_exc()
+                        self.console.print(f"[red]❌ Error Details:\n{error_details}[/red]")
+                        result_state = self.current_state
+                        result_state.messages.append(type('AgentMessage', (), {
+                            'role': 'assistant',
+                            'content': f"Error occurred: {str(e)}",
+                            'metadata': {'error': True, 'traceback': error_details}
+                        })())
                     
                     progress.remove_task(task)
                 
-                last_message = result_state.messages[-1] if result_state.messages else None
-                if last_message and last_message.role in ["assistant", "supervisor"]:
-                    self.console.print()
-                    self.console.print(Panel(
-                        last_message.content,
-                        title="🤖 Assistant",
-                        border_style="green"
-                    ))
-                    self.console.print()
+                # Handle different types of result_state
+                if hasattr(result_state, 'messages') and result_state.messages:
+                    last_message = result_state.messages[-1]
+                    
+                    # Check if the message contains error information
+                    if hasattr(last_message, 'metadata') and last_message.metadata and last_message.metadata.get('error'):
+                        # Display error with full traceback
+                        self.console.print()
+                        self.console.print(Panel(
+                            f"[red]{last_message.content}[/red]",
+                            title="❌ Error",
+                            border_style="red"
+                        ))
+                        if 'traceback' in last_message.metadata:
+                            self.console.print(f"[dim]{last_message.metadata['traceback']}[/dim]")
+                        self.console.print()
+                    elif last_message.role in ["assistant", "supervisor"]:
+                        # Normal response
+                        self.console.print()
+                        self.console.print(Panel(
+                            last_message.content,
+                            title="🤖 Assistant",
+                            border_style="green"
+                        ))
+                        self.console.print()
+                else:
+                    # Fallback if no messages
+                    self.console.print("[yellow]⚠️ No response received from agents[/yellow]")
                 
                 self.current_state = result_state
                 
             except KeyboardInterrupt:
                 self.console.print("\n[yellow]Use /exit to quit gracefully[/yellow]")
             except Exception as e:
-                self.console.print(f"[red]Error: {str(e)}[/red]")
+                import traceback
+                error_details = traceback.format_exc()
+                self.console.print(Panel(
+                    f"[red]Unexpected error: {str(e)}[/red]\n\n[dim]Full traceback:\n{error_details}[/dim]",
+                    title="❌ Critical Error",
+                    border_style="red"
+                ))
     
     async def _start_background_indexing(self):
         """Start background indexing for the current directory"""
@@ -202,12 +264,21 @@ class AgentCLI:
         elif cmd == "agents":
             self._show_agents()
         
+        elif cmd == "status":
+            if self.status_bar.is_active:
+                self.status_bar.stop()
+                self.console.print("[yellow]Status bar disabled[/yellow]")
+            else:
+                self.status_bar.start()
+                self.console.print("[green]Status bar enabled[/green]")
+        
         elif cmd == "clear":
             self.current_state = AgentState()
             self.console.print("[green]Conversation history cleared[/green]")
         
         elif cmd == "exit":
             await self._stop_background_indexing()
+            self.status_bar.stop()
             self.console.print("[yellow]Goodbye![/yellow]")
             sys.exit(0)
         
@@ -228,6 +299,7 @@ class AgentCLI:
               • [cyan]/index stop[/cyan] - Stop background indexing
 [cyan]/config[/cyan]   - Show current configuration
 [cyan]/agents[/cyan]   - List available agents and their capabilities
+[cyan]/status[/cyan]   - Toggle status bar display on/off
 [cyan]/clear[/cyan]    - Clear conversation history
 [cyan]/exit[/cyan]     - Exit the application
 

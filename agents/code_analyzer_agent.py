@@ -4,6 +4,7 @@ import json
 from typing import Dict, Any, List, Optional, Set
 from pathlib import Path
 from core.base_agent import BaseAgent, AgentState
+from core.shared_context import shared_context
 
 try:
     import tree_sitter_python as tspython
@@ -106,6 +107,9 @@ Provide insights about:
                     
                     except Exception as e:
                         print(f"Failed to analyze {file_path}: {e}")
+        
+        # Share the code index with other agents
+        shared_context.set_code_index(self.code_index)
         
         summary = f"""Directory indexing complete for: {directory_path}
 

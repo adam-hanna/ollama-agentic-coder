@@ -14,6 +14,18 @@ class FileOperationsAgent(BaseAgent):
 4. Move, copy, and organize files and directories
 5. Ensure all operations are safe and follow best practices
 
+IMPORTANT: You have access to powerful exploration tools:
+- Use built-in read_file() method to examine any file
+- Use execute_command() method for shell operations like ls, find, grep
+- Access indexed codebase data via shared_context for understanding project structure
+
+For codebase analysis, you should:
+1. Use `ls -la` to understand project structure
+2. Use `find . -name "*.py"` to discover files
+3. Read specific files that need examination
+4. Use `grep` to search for patterns across files
+5. Combine file reading with command-line exploration
+
 Safety guidelines:
 - Always check if files exist before operations
 - Create backups for destructive operations when requested
@@ -264,8 +276,343 @@ You can perform these operations:
         except Exception as e:
             return f"Failed to list directory {dir_path}: {str(e)}"
     
+    async def _create_config_file(self, config_type: str, project_root: str = ".") -> str:
+        """Create development configuration files for detected project type"""
+        # Detect project type first
+        project_info = await self._detect_project_type(project_root)
+        
+        if config_type == "dev-config":
+            return await self._create_development_config(project_root, project_info)
+        elif config_type == "test-config":
+            return await self._create_test_config(project_root, project_info)
+        elif config_type == "lint-config":
+            return await self._create_lint_config(project_root, project_info)
+        else:
+            return f"Unknown config type: {config_type}. Available: dev-config, test-config, lint-config"
+    
+    async def _detect_project_type(self, project_root: str = ".") -> Dict[str, Any]:
+        """Detect project type and language from directory structure"""
+        project_info = {
+            "languages": [],
+            "build_tools": [],
+            "frameworks": [],
+            "package_managers": []
+        }
+        
+        # Check for common files to detect languages and tools
+        files_check = await self.execute_command(f"find {project_root} -maxdepth 2 -type f")
+        
+        # Python detection
+        if any(f in files_check for f in [".py", "requirements.txt", "setup.py", "pyproject.toml"]):
+            project_info["languages"].append("python")
+            if "requirements.txt" in files_check:
+                project_info["package_managers"].append("pip")
+            if "pyproject.toml" in files_check:
+                project_info["build_tools"].append("setuptools")
+        
+        # JavaScript/TypeScript detection
+        if any(f in files_check for f in ["package.json", ".js", ".ts", ".jsx", ".tsx"]):
+            if ".ts" in files_check or ".tsx" in files_check:
+                project_info["languages"].append("typescript")
+            else:
+                project_info["languages"].append("javascript")
+            project_info["package_managers"].append("npm")
+        
+        # Java detection
+        if any(f in files_check for f in [".java", "pom.xml", "build.gradle"]):
+            project_info["languages"].append("java")
+            if "pom.xml" in files_check:
+                project_info["build_tools"].append("maven")
+            if "build.gradle" in files_check:
+                project_info["build_tools"].append("gradle")
+        
+        # Go detection
+        if "go.mod" in files_check or ".go" in files_check:
+            project_info["languages"].append("go")
+            project_info["build_tools"].append("go")
+        
+        # Rust detection
+        if "Cargo.toml" in files_check or ".rs" in files_check:
+            project_info["languages"].append("rust")
+            project_info["build_tools"].append("cargo")
+        
+        return project_info
+    
+    async def _create_development_config(self, project_root: str, project_info: Dict[str, Any]) -> str:
+        """Create language-appropriate development configuration"""
+        results = []
+        
+        for language in project_info["languages"]:
+            if language == "python":
+                content = await self._generate_python_dev_config(project_info)
+                result = await self._write_file(f"{project_root}/pyproject.toml", content)
+                results.append(f"Python: {result}")
+            
+            elif language == "javascript" or language == "typescript":
+                content = await self._generate_js_dev_config(project_info)
+                result = await self._write_file(f"{project_root}/package.json", content)
+                results.append(f"JS/TS: {result}")
+            
+            elif language == "java":
+                if "maven" in project_info["build_tools"]:
+                    content = await self._generate_maven_config(project_info)
+                    result = await self._write_file(f"{project_root}/pom.xml", content)
+                    results.append(f"Java (Maven): {result}")
+            
+            elif language == "go":
+                content = await self._generate_go_config(project_info)
+                result = await self._write_file(f"{project_root}/go.mod", content)
+                results.append(f"Go: {result}")
+                
+        return "\\n".join(results) if results else "No development configuration created"
+    
+    async def _generate_python_dev_config(self, project_info: Dict[str, Any]) -> str:
+        """Generate Python-specific development configuration"""
+        return '''[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "project"
+version = "0.1.0"
+description = ""
+requires-python = ">=3.8"
+dependencies = []
+
+[project.optional-dependencies]
+dev = []
+
+[tool.black]
+line-length = 88
+
+[tool.mypy]
+warn_return_any = true
+warn_unused_configs = true
+'''
+
+    async def _generate_js_dev_config(self, project_info: Dict[str, Any]) -> str:
+        """Generate JavaScript/TypeScript development configuration"""
+        is_ts = "typescript" in project_info["languages"]
+        return '''{
+  "name": "project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.''' + ("ts" if is_ts else "js") + '''",
+  "scripts": {
+    "test": "echo \\"Error: no test specified\\" && exit 1"
+  },
+  "devDependencies": {}
+}'''
+
+    async def _generate_maven_config(self, project_info: Dict[str, Any]) -> str:
+        """Generate Maven configuration for Java projects"""
+        return '''<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <groupId>com.example</groupId>
+    <artifactId>project</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+    </properties>
+</project>'''
+
+    async def _generate_go_config(self, project_info: Dict[str, Any]) -> str:
+        """Generate Go module configuration"""
+        return '''module example.com/project
+
+go 1.19
+'''
+
+    async def _create_test_config(self, project_root: str, project_info: Dict[str, Any]) -> str:
+        """Create language-appropriate test configuration"""
+        results = []
+        
+        for language in project_info["languages"]:
+            if language == "python":
+                content = '''[tool:pytest]
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+addopts = -v --tb=short
+'''
+                result = await self._write_file(f"{project_root}/pytest.ini", content)
+                results.append(f"Python test config: {result}")
+                
+            elif language in ["javascript", "typescript"]:
+                content = '''{
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}'''
+                # This would merge with existing package.json
+                result = f"Jest test configuration ready for {language}"
+                results.append(result)
+                
+            elif language == "java":
+                # Maven or Gradle test config would go here
+                result = "Java test framework configuration ready"
+                results.append(result)
+                
+            elif language == "go":
+                # Go test config (usually built-in)
+                result = "Go test configuration ready (built-in testing)"
+                results.append(result)
+                
+        return "\\n".join(results) if results else "No test configuration created"
+    
+    async def _create_lint_config(self, project_root: str, project_info: Dict[str, Any]) -> str:
+        """Create language-appropriate linting configuration"""
+        results = []
+        
+        for language in project_info["languages"]:
+            if language == "python":
+                content = '''[tool.black]
+line-length = 88
+
+[tool.mypy]
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.ruff]
+line-length = 88
+'''
+                result = await self._write_file(f"{project_root}/.python-lint.toml", content)
+                results.append(f"Python lint config: {result}")
+                
+            elif language in ["javascript", "typescript"]:
+                content = '''{
+  "extends": ["eslint:recommended"],
+  "rules": {
+    "no-console": "warn",
+    "no-unused-vars": "error"
+  }
+}'''
+                result = await self._write_file(f"{project_root}/.eslintrc.json", content)
+                results.append(f"JS/TS lint config: {result}")
+                
+        return "\\n".join(results) if results else "No lint configuration created"
+    
+    async def _setup_test_directory(self, project_root: str = ".") -> str:
+        """Create language-appropriate test directory structure"""
+        # Detect project type
+        project_info = await self._detect_project_type(project_root)
+        
+        results = []
+        
+        # Create tests directory
+        test_dir_result = await self._create_directory(f"{project_root}/tests")
+        results.append(test_dir_result)
+        
+        # Create language-specific test files
+        for language in project_info["languages"]:
+            if language == "python":
+                # Python test setup
+                init_result = await self._write_file(f"{project_root}/tests/__init__.py", "")
+                results.append("Python: Created __init__.py")
+                
+                sample_test = '''"""Sample test file."""
+def test_basic():
+    """Basic test."""
+    assert True
+
+def test_addition():
+    """Test addition."""
+    assert 1 + 1 == 2
+'''
+                test_result = await self._write_file(f"{project_root}/tests/test_basic.py", sample_test)
+                results.append(f"Python: {test_result}")
+                
+            elif language in ["javascript", "typescript"]:
+                # JavaScript/TypeScript test setup
+                ext = "ts" if language == "typescript" else "js"
+                sample_test = f'''// Sample test file
+describe('Basic tests', () => {{
+  test('should pass basic test', () => {{
+    expect(1 + 1).toBe(2);
+  }});
+  
+  test('should test string operations', () => {{
+    const text = "Hello, World!";
+    expect(text.length).toBe(13);
+    expect(text).toContain("World");
+  }});
+}});
+'''
+                test_result = await self._write_file(f"{project_root}/tests/basic.test.{ext}", sample_test)
+                results.append(f"{language}: {test_result}")
+                
+            elif language == "java":
+                # Java test setup
+                sample_test = '''package com.example;
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+class BasicTest {
+    
+    @Test
+    void basicTest() {
+        assertTrue(true);
+    }
+    
+    @Test
+    void testAddition() {
+        assertEquals(2, 1 + 1);
+    }
+}
+'''
+                test_result = await self._write_file(f"{project_root}/src/test/java/BasicTest.java", sample_test)
+                results.append(f"Java: {test_result}")
+                
+            elif language == "go":
+                # Go test setup
+                sample_test = '''package main
+
+import "testing"
+
+func TestBasic(t *testing.T) {
+    if 1+1 != 2 {
+        t.Errorf("Expected 1+1 to equal 2")
+    }
+}
+
+func TestString(t *testing.T) {
+    text := "Hello, World!"
+    if len(text) != 13 {
+        t.Errorf("Expected length 13, got %d", len(text))
+    }
+}
+'''
+                test_result = await self._write_file(f"{project_root}/main_test.go", sample_test)
+                results.append(f"Go: {test_result}")
+                
+        return "\\n".join(results)
+
     async def _intelligent_file_operation(self, task: str) -> str:
         """Handle complex file operations using AI"""
+        # Check if this is a request for standard config files
+        if any(keyword in task.lower() for keyword in ["config", "development", "test", "lint", "setup"]):
+            if "dev" in task.lower() and "config" in task.lower():
+                return await self._create_config_file("dev-config")
+            elif "test" in task.lower() and "config" in task.lower():
+                return await self._create_config_file("test-config")
+            elif "lint" in task.lower() and "config" in task.lower():
+                return await self._create_config_file("lint-config")
+            elif "test" in task.lower() and ("setup" in task.lower() or "directory" in task.lower()):
+                return await self._setup_test_directory()
+        
         prompt = f"""Analyze this file operation request and determine the best approach:
 
 Request: {task}

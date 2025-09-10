@@ -179,6 +179,20 @@ class BackgroundIndexer:
         try:
             self.console.print("[yellow]🔄 Performing initial code indexing...[/yellow]")
             
+            # Count total files for progress tracking
+            total_files = sum(
+                1 for root, dirs, files in os.walk(root_path)
+                for file in files
+                if any(file.endswith(ext) for ext in self.code_analyzer.config.code_analyzer.supported_extensions)
+            )
+            
+            # Start progress tracking
+            try:
+                from cli.status_bar import progress_tracker
+                progress_tracker.start_operation("indexing", f"Indexing {root_path}", total_files)
+            except ImportError:
+                pass  # Status bar not available
+            
             # Import AgentState here to avoid circular imports
             from core.base_agent import AgentState
             
@@ -187,6 +201,13 @@ class BackgroundIndexer:
                     current_task=f"index_directory:{root_path}"
                 )
                 await self.code_analyzer.process(index_state)
+            
+            # Complete progress tracking
+            try:
+                from cli.status_bar import progress_tracker
+                progress_tracker.complete_operation("indexing")
+            except ImportError:
+                pass
             
             self.console.print("[green]✅ Initial indexing completed[/green]")
         except Exception as e:

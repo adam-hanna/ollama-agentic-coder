@@ -9,6 +9,8 @@ from .git_agent import GitAgent
 from .documentation_agent import DocumentationAgent
 from .command_line_agent import CommandLineAgent
 from .context_manager_agent import ContextManagerAgent
+from .coding_agent import CodingAgent
+from .architecting_agent import ArchitectingAgent
 
 __all__ = [
     "WebSearchAgent", 
@@ -21,5 +23,7 @@ __all__ = [
     "GitAgent",
     "DocumentationAgent",
     "CommandLineAgent",
-    "ContextManagerAgent"
+    "ContextManagerAgent",
+    "CodingAgent",
+    "ArchitectingAgent"
 ]
